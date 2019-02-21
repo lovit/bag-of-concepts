@@ -99,8 +99,8 @@ class BOCModel:
 
     def _train_word_embedding(self, corpus):
         if self.embedding_method == 'word2vec':
-            self.wv, self.idx_to_vocab = train_wv_by_word2vec(
-                corpus, self.min_count, self.embedding_dim)
+            self.wv, self.idx_to_vocab = train_wv_by_word2vec(corpus,
+                self.min_count, self.embedding_dim, self.tokenizer)
         elif self.embedding_method == 'svd':
             if not hasattr(self, '_bow') or self.idx_to_vocab is None:
                 self._bow, self.idx_to_vocab = corpus_to_bow(
@@ -171,8 +171,23 @@ def vectorize_corpus(corpus, tokenizer, vocab_to_idx):
     n_terms = len(vocab_to_idx)
     return csr_matrix((data, (rows, cols)), shape=(n_docs, n_terms))
 
-def train_wv_by_word2vec(corpus, min_count, embedding_dim):
-    raise NotImplemented
+def train_wv_by_word2vec(corpus, min_count, embedding_dim, tokenizer):
+    class CorpusDecorator:
+        def __init__(self, corpus, tokenizer):
+            self.corpus = corpus
+            self.tokenizer = tokenizer
+        def __iter__(self):
+            for doc in self.corpus:
+                terms = self.tokenizer(doc)
+                if terms:
+                    yield terms
+
+    decorated_corpus = CorpusDecorator(corpus, tokenizer)
+    word2vec = Word2Vec(decorated_corpus,
+        size=embedding_dim, min_count=min_count)
+    wv = word2vec.wv.vectors
+    idx_to_vocab = word2vec.wv.index2word
+    return wv, idx_to_vocab
 
 def train_wv_by_svd(bow, embedding_dim):
     raise NotImplemented
