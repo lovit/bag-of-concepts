@@ -6,6 +6,7 @@ from scipy.sparse import csr_matrix
 from sklearn.decomposition import TruncatedSVD
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import normalize
+from sklearn.utils.extmath import safe_sparse_dot
 
 
 class BOCModel:
@@ -127,7 +128,10 @@ class BOCModel:
         self.x_tc = csr_matrix((data, (rows, cols)),
             shape=(n_terms, self.n_concepts))
 
-    def transform(self, corpus_or_bow, remain_bow=False):
+    def transform(self, corpus_or_bow=None, remain_bow=False):
+        if corpus_or_bow is None and hasattr(self, '_bow'):
+            return self.transform(self._bow, remain_bow)
+
         # use input bow matrix
         if sp.sparse.issparse(corpus_or_bow):
             if corpus_or_bow.shape[1] != len(self.idx_to_vocab):
@@ -142,8 +146,7 @@ class BOCModel:
                 self.idx_to_vocab, min_count=-1)
 
         # concept transformation
-        boc = bow_to_boc(self._bow, self.idx_to_concept,
-            self.idx_to_concept_weight, self.n_concepts)
+        boc = bow_to_boc(self._bow, self.x_tc)
 
         if not remain_bow and hasattr(self, '_bow'):
             del self._bow
@@ -214,5 +217,6 @@ def train_concept_by_kmeans(wv, n_concepts):
     idx_to_concept_weight = np.ones(wv_.shape[0])
     return idx_to_concept, idx_to_concept_weight
 
-def bow_to_boc(bow, idx_to_concept, idx_to_concept_weight):
-    raise NotImplemented
+def bow_to_boc(bow, x_tc):
+    boc = safe_sparse_dot(bow, x_tc)
+    return boc
