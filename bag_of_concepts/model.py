@@ -3,7 +3,7 @@ from gensim.models import Word2Vec
 import numpy as np
 import scipy as sp
 from scipy.sparse import csr_matrix
-from sklearn.decomposition import TruncatedSVD
+from sklearn.decomposition import TruncatedSVD, NMF
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import normalize
 from sklearn.utils.extmath import safe_sparse_dot
@@ -21,7 +21,7 @@ class BOCModel:
     :param embedding_dim: int
         Word embedding dimension
     :param embedding_method: str
-        Embedding method. Choose from ['word2vec', 'svd']
+        Embedding method. Choose from ['word2vec', 'nmf', 'svd']
     :param concept_method: str
         Concept method. Choose from ['kmeans']
     :param tokenizer: callable
@@ -48,8 +48,8 @@ class BOCModel:
         embedding_method='word2vec', concept_method='kmeans', tokenizer=None,
         idx_to_vocab=None, verbose=True):
 
-        if not embedding_method in ['word2vec', 'svd']:
-            raise ValueError("embedding_method should be ['word2vec', 'svd']")
+        if not embedding_method in ['word2vec', 'nmf', 'svd']:
+            raise ValueError("embedding_method should be ['word2vec', 'nmf' ,'svd']")
         if not concept_method in ['kmeans']:
             raise ValueError("concept_method should be ['kmeans']")
         if min_count < 1 and isinstance(min_count, int):
@@ -85,7 +85,7 @@ class BOCModel:
             self._train_concepts(input)
         elif input is not None:
             self.idx_to_vocab = None
-            self.fit_transform(input)
+            self.fit(input)
         else:
             self.idx_to_vocab = None
 
@@ -97,21 +97,26 @@ class BOCModel:
              or (self.idx_to_concept is None)
              or (self.idx_to_vocab is None)):
             self.fit(corpus)
-        #return self.transform(corpus)
+        return self.transform(corpus)
 
     def fit(self, corpus):
         self._train_word_embedding(corpus)
         self._train_concept(self.wv)
 
     def _train_word_embedding(self, corpus):
+        # tokenization
+        if self.embedding_method != 'word2vec':
+            self._bow, self.idx_to_vocab = corpus_to_bow(
+                corpus, self.tokenizer, self.idx_to_vocab, self.min_count)
+
+        # word embedding
         if self.embedding_method == 'word2vec':
             self.wv, self.idx_to_vocab = train_wv_by_word2vec(corpus,
                 self.min_count, self.embedding_dim, self.tokenizer)
         elif self.embedding_method == 'svd':
-            if not hasattr(self, '_bow') or self.idx_to_vocab is None:
-                self._bow, self.idx_to_vocab = corpus_to_bow(
-                    corpus, self.tokenizer, self.idx_to_vocab, self.min_count)
             self.wv = train_wv_by_svd(self._bow, self.embedding_dim)
+        elif self.embedding_method == 'nmf':
+            self.wv = train_wv_by_nmf(self._bow, self.embedding_dim)
         else:
             raise ValueError("embedding_method should be ['word2vec', 'svd']")
 
@@ -203,6 +208,11 @@ def train_wv_by_word2vec(corpus, min_count, embedding_dim, tokenizer):
     wv = word2vec.wv.vectors
     idx_to_vocab = word2vec.wv.index2word
     return wv, idx_to_vocab
+
+def train_wv_by_nmf(bow, embedding_dim):
+    nmf = NMF(n_components=embedding_dim, verbose=False, tol=0.015)
+    wv = nmf.fit_transform(bow.transpose())
+    return wv
 
 def train_wv_by_svd(bow, embedding_dim):
     svd = TruncatedSVD(n_components=embedding_dim)
