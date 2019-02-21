@@ -2,6 +2,8 @@ from collections import Counter
 import numpy as np
 import scipy as sp
 from scipy.sparse import csr_matrix
+from gensim.models import Word2Vec
+
 
 class BOCModel:
     """
@@ -92,12 +94,7 @@ class BOCModel:
         #return self.transform(corpus)
 
     def fit(self, corpus):
-        # vectorizing
-        if hasattr(self, '_bow') or self.idx_to_vocab is None:
-            self._bow, self.idx_to_vocab = corpus_to_bow(
-                corpus, self.tokenizer, self.idx_to_vocab, self.min_count)
-
-        #self._train_word_embedding(corpus)
+        self._train_word_embedding(corpus)
         #self._train_concept(self.wv)
 
     def _train_word_embedding(self, corpus):
@@ -105,7 +102,10 @@ class BOCModel:
             self.wv, self.idx_to_vocab = train_wv_by_word2vec(
                 corpus, self.min_count, self.embedding_dim)
         elif self.embedding_method == 'svd':
-            self.wv = train_wv_by_svd(bow, self.embedding_dim)
+            if not hasattr(self, '_bow') or self.idx_to_vocab is None:
+                self._bow, self.idx_to_vocab = corpus_to_bow(
+                    corpus, self.tokenizer, self.idx_to_vocab, self.min_count)
+            #self.wv = train_wv_by_svd(self._bow, self.embedding_dim)
         else:
             raise ValueError("embedding_method should be ['word2vec', 'svd']")
 
