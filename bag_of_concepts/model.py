@@ -1,9 +1,11 @@
 from collections import Counter
+from gensim.models import Word2Vec
 import numpy as np
 import scipy as sp
 from scipy.sparse import csr_matrix
 from sklearn.decomposition import TruncatedSVD
-from gensim.models import Word2Vec
+from sklearn.cluster import KMeans
+from sklearn.preprocessing import normalize
 
 
 class BOCModel:
@@ -96,7 +98,7 @@ class BOCModel:
 
     def fit(self, corpus):
         self._train_word_embedding(corpus)
-        #self._train_concept(self.wv)
+        self._train_concept(self.wv)
 
     def _train_word_embedding(self, corpus):
         if self.embedding_method == 'word2vec':
@@ -114,7 +116,6 @@ class BOCModel:
         idx_to_c, idx_to_cw = train_concept_by_kmeans(self.wv, self.n_concepts)
         self.idx_to_concept = idx_to_c
         self.idx_to_concept_weight = idx_to_cw
-        raise NotImplemented
 
     def transform(self, corpus_or_bow, remain_bow=False):
         # use input bow matrix
@@ -196,7 +197,12 @@ def train_wv_by_svd(bow, embedding_dim):
     return wv
 
 def train_concept_by_kmeans(wv, n_concepts):
-    raise NotImplemented
+    wv_ = normalize(wv)
+    kmeans = KMeans(n_clusters=n_concepts,
+        init='random', max_iter=20, n_init=1)
+    idx_to_concept = kmeans.fit_predict(wv_)
+    idx_to_concept_weight = np.ones(wv_.shape[0])
+    return idx_to_concept, idx_to_concept_weight
 
 def bow_to_boc(bow, idx_to_concept, idx_to_concept_weight):
     raise NotImplemented
