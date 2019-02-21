@@ -1,10 +1,12 @@
+from collections import Counter
 import numpy as np
 import scipy as sp
+from scipy.sparse import csr_matrix
 
 class BOCModel:
     """
-    :param input: 'List of list of str' or 'numpy.ndarray'
-        List of documents. Document is represented with list of str
+    :param input: 'List of str' or 'numpy.ndarray'
+        List of documents. Document is represented with str
         Or trained word vector representation.
     :param n_concepts: int
         Number of concept.
@@ -73,7 +75,7 @@ class BOCModel:
                                  'with input matrix %d != %d' % (a, b))
             self.idx_to_vocab = idx_to_vocab
             self._train_concepts(input)
-        elif not isinstance(input, None):
+        elif input is not None:
             self.idx_to_vocab = None
             self.fit_transform(input)
         else:
@@ -87,19 +89,22 @@ class BOCModel:
              or (self.idx_to_concept is None)
              or (self.idx_to_vocab is None)):
             self.fit(corpus)
-        return self.transform(corpus)
+        #return self.transform(corpus)
 
     def fit(self, corpus):
-        self._train_word_embedding(corpus)
-        self._train_concept(self.wv)
+        # vectorizing
+        if hasattr(self, '_bow') or self.idx_to_vocab is None:
+            self._bow, self.idx_to_vocab = corpus_to_bow(
+                corpus, self.tokenizer, self.idx_to_vocab, self.min_count)
+
+        #self._train_word_embedding(corpus)
+        #self._train_concept(self.wv)
 
     def _train_word_embedding(self, corpus):
         if self.embedding_method == 'word2vec':
             self.wv, self.idx_to_vocab = train_wv_by_word2vec(
                 corpus, self.min_count, self.embedding_dim)
         elif self.embedding_method == 'svd':
-            self._bow, self.idx_to_vocab = corpus_to_bow(
-                corpus, self.tokenizer, self.idx_to_vocab, self.min_count)
             self.wv = train_wv_by_svd(bow, self.embedding_dim)
         else:
             raise ValueError("embedding_method should be ['word2vec', 'svd']")
@@ -111,12 +116,18 @@ class BOCModel:
         raise NotImplemented
 
     def transform(self, corpus_or_bow, remain_bow=False):
-        # use only trained vocabulary
-        if not sp.sparse.issparse(corpus_or_bow):
-            self._bow = corpus_to_bow(corpus, self.tokenizer,
-                self.idx_to_vocab, min_count=-1)
-        else:
+        # use input bow matrix
+        if sp.sparse.issparse(corpus_or_bow):
+            if corpus_or_bow.shape[1] != len(self.idx_to_vocab):
+                a = corpus_or_bow.shape[1]
+                b = len(self.idx_to_vocab)
+                raise ValueError('The vocab size of input is different '\
+                    'with traind vocabulary size {} != {}'.format(a, b))
             self._bow = corpus_or_bow
+        # use only trained vocabulary
+        else:
+            self._bow, _ = corpus_to_bow(corpus, self.tokenizer,
+                self.idx_to_vocab, min_count=-1)
 
         # concept transformation
         boc = bow_to_boc(self._bow, self.idx_to_concept,
@@ -128,7 +139,37 @@ class BOCModel:
         return boc
 
 def corpus_to_bow(corpus, tokenizer, idx_to_vocab=None, min_count=-1):
-    raise NotImplemented
+    if idx_to_vocab is not None:
+        vocab_to_idx = {vocab:idx for idx, vocab in enumerate(idx_to_vocab)}
+    else:
+        idx_to_vocab, vocab_to_idx = scan_vocabulary(
+            corpus, tokenizer, min_count)
+    bow = vectorize_corpus(corpus, tokenizer, vocab_to_idx)
+    return bow, idx_to_vocab
+
+def scan_vocabulary(corpus, tokenizer, min_count):
+    counter = Counter(word for doc in corpus
+        for word in tokenizer(doc))
+    counter = {vocab:count for vocab, count in counter.items()
+        if count >= min_count}
+    idx_to_vocab = [vocab for vocab in sorted(counter, key=lambda x:-counter[x])]
+    vocab_to_idx = {vocab:idx for idx, vocab in enumerate(idx_to_vocab)}
+    return idx_to_vocab, vocab_to_idx
+
+def vectorize_corpus(corpus, tokenizer, vocab_to_idx):
+    rows = []
+    cols = []
+    data = []
+    for i, doc in enumerate(corpus):
+        terms = tokenizer(doc)
+        terms = Counter([vocab_to_idx[t] for t in terms if t in vocab_to_idx])
+        for j, c in terms.items():
+            rows.append(i)
+            cols.append(j)
+            data.append(c)
+    n_docs = i + 1
+    n_terms = len(vocab_to_idx)
+    return csr_matrix((data, (rows, cols)), shape=(n_docs, n_terms))
 
 def train_wv_by_word2vec(corpus, min_count, embedding_dim):
     raise NotImplemented
