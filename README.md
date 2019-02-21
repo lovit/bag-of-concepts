@@ -36,7 +36,7 @@ boc = model.fit_transform(corpus)
 
 | Parameter | Type | Default | Help |
 | --- | --- | --- | --- |
-| input | 'List of str' or 'numpy.ndarray' | None | List of documents. Document is<br>represented with str Or trained word vector representation. |
+| input | 'List of str' or 'numpy.ndarray' | None | List of documents. Document is represented with str Or trained word vector representation. |
 | n_concepts | int | 100 | Number of concept. |
 | min_count | int | 10 | Minumum frequency of word occurrence |
 | embedding_dim | int | 100 | Word embedding dimension |
