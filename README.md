@@ -1,6 +1,8 @@
 # Bag-of-Concepts
 
-Re-implementation of ["Bag-of-Concepts: Comprehending Document Representation through Clustering Words in Distributed Representation" (Han Kyul Kim, Hyunjoong Kim, Sunzoon Cho)](https://www.sciencedirect.com/science/article/pii/S0925231217308962)
+Re-implementation of ["Bag-of-Concepts: Comprehending Document Representation through Clustering Words in Distributed Representation" (Han Kyul Kim, Hyunjoong Kim, Sunzoon Cho)](https://www.sciencedirect.com/science/article/pii/S0925231217308962) with Python
+
+Original Python implementation is [here](https://github.com/hank110/bag-of-concepts)
 
 ## Requirements
 
