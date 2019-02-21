@@ -39,6 +39,8 @@ class BOCModel:
         Word to concept index
     idx_to_concept_weight : numpy.ndarray
         Word to concept weight
+    x_tc : scipy.sparse.csr_matrix
+        Term to concept sparse matrix
     """
 
     def __init__(self, input=None, n_concepts=100, min_count=10, embedding_dim=100,
@@ -117,6 +119,14 @@ class BOCModel:
         self.idx_to_concept = idx_to_c
         self.idx_to_concept_weight = idx_to_cw
 
+        cols = idx_to_c
+        rows = np.arange(idx_to_c.shape[0])
+        data = idx_to_cw
+        n_terms = rows.shape[0]
+
+        self.x_tc = csr_matrix((data, (rows, cols)),
+            shape=(n_terms, self.n_concepts))
+
     def transform(self, corpus_or_bow, remain_bow=False):
         # use input bow matrix
         if sp.sparse.issparse(corpus_or_bow):
@@ -133,7 +143,7 @@ class BOCModel:
 
         # concept transformation
         boc = bow_to_boc(self._bow, self.idx_to_concept,
-            self.idx_to_concept_weight)
+            self.idx_to_concept_weight, self.n_concepts)
 
         if not remain_bow and hasattr(self, '_bow'):
             del self._bow
