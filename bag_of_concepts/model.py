@@ -82,6 +82,7 @@ class BOCModel:
                 raise ValueError('Length of idx_to_vocab is different '\
                                  'with input matrix %d != %d' % (a, b))
             self.idx_to_vocab = idx_to_vocab
+            self.wv = input
             self._train_concepts(input)
         elif input is not None:
             self.idx_to_vocab = None
@@ -101,7 +102,7 @@ class BOCModel:
 
     def fit(self, corpus):
         self._train_word_embedding(corpus)
-        self._train_concept(self.wv)
+        self._train_concepts(self.wv)
 
     def _train_word_embedding(self, corpus):
         # tokenization
@@ -120,8 +121,8 @@ class BOCModel:
         else:
             raise ValueError("embedding_method should be ['word2vec', 'svd']")
 
-    def _train_concept(self, wv):
-        idx_to_c, idx_to_cw = train_concept_by_kmeans(self.wv, self.n_concepts)
+    def _train_concepts(self, wv):
+        idx_to_c, idx_to_cw = train_concepts_by_kmeans(wv, self.n_concepts)
         self.idx_to_concept = idx_to_c
         self.idx_to_concept_weight = idx_to_cw
 
@@ -219,7 +220,7 @@ def train_wv_by_svd(bow, embedding_dim):
     wv = svd.fit_transform(bow.transpose())
     return wv
 
-def train_concept_by_kmeans(wv, n_concepts):
+def train_concepts_by_kmeans(wv, n_concepts):
     wv_ = normalize(wv)
     kmeans = KMeans(n_clusters=n_concepts,
         init='random', max_iter=20, n_init=1)
