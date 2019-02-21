@@ -2,6 +2,7 @@ from collections import Counter
 import numpy as np
 import scipy as sp
 from scipy.sparse import csr_matrix
+from sklearn.decomposition import TruncatedSVD
 from gensim.models import Word2Vec
 
 
@@ -105,7 +106,7 @@ class BOCModel:
             if not hasattr(self, '_bow') or self.idx_to_vocab is None:
                 self._bow, self.idx_to_vocab = corpus_to_bow(
                     corpus, self.tokenizer, self.idx_to_vocab, self.min_count)
-            #self.wv = train_wv_by_svd(self._bow, self.embedding_dim)
+            self.wv = train_wv_by_svd(self._bow, self.embedding_dim)
         else:
             raise ValueError("embedding_method should be ['word2vec', 'svd']")
 
@@ -190,7 +191,9 @@ def train_wv_by_word2vec(corpus, min_count, embedding_dim, tokenizer):
     return wv, idx_to_vocab
 
 def train_wv_by_svd(bow, embedding_dim):
-    raise NotImplemented
+    svd = TruncatedSVD(n_components=embedding_dim)
+    wv = svd.fit_transform(bow.transpose())
+    return wv
 
 def train_concept_by_kmeans(wv, n_concepts):
     raise NotImplemented
