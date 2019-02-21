@@ -34,6 +34,19 @@ model = BOCModel()
 boc = model.fit_transform(corpus)
 ```
 
+If you have trained word vector and vocabulary index, (for example with Gensim Word2Vec)
+
+```python
+from gensim.models import Word2Vec
+
+word2vec = Word2Vec(corpus)
+wv = word2vec.wv.vectors
+idx_to_vocab = word2vec.wv.index2word
+
+model = BOCModel(wv, idx_to_vocab=idx_to_vocab)
+boc = model.transform(corpus)
+```
+
 | Parameter | Type | Default | Help |
 | --- | --- | --- | --- |
 | input | 'List of str' or 'numpy.ndarray' | None | List of documents. Document is represented with str Or trained word vector representation. |
