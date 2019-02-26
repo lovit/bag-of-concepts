@@ -148,7 +148,7 @@ class BOCModel:
             self._bow = corpus_or_bow
         # use only trained vocabulary
         else:
-            self._bow, _ = corpus_to_bow(corpus, self.tokenizer,
+            self._bow, _ = corpus_to_bow(corpus_or_bow, self.tokenizer,
                 self.idx_to_vocab, min_count=-1)
 
         # concept transformation
