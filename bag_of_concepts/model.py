@@ -90,7 +90,7 @@ class BOCModel:
         else:
             self.idx_to_vocab = None
 
-    def fit_transform(self, corpus):
+    def fit_transform(self, corpus, apply_icf=False):
         if isinstance(corpus, np.ndarray):
             raise ValueError('Input corpus should not be word vector')
 
@@ -98,7 +98,7 @@ class BOCModel:
              or (self.idx_to_concept is None)
              or (self.idx_to_vocab is None)):
             self.fit(corpus)
-        return self.transform(corpus)
+        return self.transform(corpus, apply_icf)
 
     def fit(self, corpus):
         self._train_word_embedding(corpus)
@@ -134,7 +134,7 @@ class BOCModel:
         self.x_tc = csr_matrix((data, (rows, cols)),
             shape=(n_terms, self.n_concepts))
 
-    def transform(self, corpus_or_bow=None, remain_bow=False):
+    def transform(self, corpus_or_bow=None, apply_icf=False, remain_bow=False):
         if corpus_or_bow is None and hasattr(self, '_bow'):
             return self.transform(self._bow, remain_bow)
 
@@ -153,6 +153,10 @@ class BOCModel:
 
         # concept transformation
         boc = bow_to_boc(self._bow, self.x_tc)
+
+        if apply_icf:
+            self.icf = train_icf(boc)
+            boc = safe_sparse_dot(boc, sp.sparse.diags(self.icf))
 
         if not remain_bow and hasattr(self, '_bow'):
             del self._bow
@@ -231,3 +235,11 @@ def train_concepts_by_kmeans(wv, n_concepts):
 def bow_to_boc(bow, x_tc):
     boc = safe_sparse_dot(bow, x_tc)
     return boc
+
+def train_icf(boc):
+    _, cf_array = boc.nonzero()
+    num_docs, num_concepts = boc.shape
+    cf = np.bincount(cf_array, minlength=num_concepts)
+    icf = num_docs / cf
+    icf[np.isinf(icf)] = 0
+    return icf
